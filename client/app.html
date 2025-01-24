@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hobbit Classifier</title>
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/css/bootstrap.min.css">
+    <link rel="stylesheet" href="./dropzone.min.css">
+    <link rel="stylesheet" href="./app.css">
+</head>
+
+<body>
+    <div class="blurred-img"></div>
+    <nav class="navbar justify-content-center">
+        <a class="title">Who's which Hobbit?</a>
+    </nav>
+
+    <div class="container">
+        <div class="row">
+            <div class="col card-wrapper" data-player="elijah_wood">
+                <div class="card">
+                    <img class="card-image" src="./images/frodo.jpg" alt="Card image cap">
+                    <div class="card-body text-center">
+                        <h4 class="text-uppercase card-title">Frodo<br>Baggins</h4>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col card-wrapper" data-player="sean_astin">
+                <div class="card">
+                    <img class="card-image" src="./images/samwise.jpg" alt="Card image cap">
+                    <div class="card-body text-center">
+                        <h4 class="text-uppercase card-title">Samwise<br>Gamgee</h4>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col card-wrapper" data-player="billy_boyd">
+                <div class="card">
+                    <img class="card-image" src="./images/pippin.jpg" alt="Card image cap">
+                    <div class="card-body text-center">
+                        <h4 class="text-uppercase card-title">Peregrin<br>Took</h4>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col card-wrapper" data-player="dominic_monaghan">
+                <div class="card">
+                    <img class="card-image" src="./images/merry.jpg" alt="Card image cap">
+                    <div class="card-body text-center">
+                        <h4 class="text-uppercase card-title">Meriadoc<br>Brandybuck</h4>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <div class="col card-wrapper" data-player="martin_freeman">
+                <div class="card">
+                    <img class="card-image" src="./images/bilbo.jpg" alt="Card image cap">
+                    <div class="card-body text-center">
+                        <h4 class="text-uppercase card-title">Bilbo<br>Baggins</h4>
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+        </div>
+
+        <div class="row white-section">
+            <div class="col-sm-4">
+                <div class="row">
+                    <div class="col-12 mx-auto">
+                        <form action="/file-upload" class="dropzone" id="dropzone">
+                            <div class="dz-message needsclick">
+                                <img src="./images/upload.png" width="80vw" height="80vw"><br>
+                                <span class="note needsclick">Drop files here or click to upload</span>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+                <div class="row mt-3">
+                    <div class="col-4.5 mx-auto">
+                        <button id="submitBtn" type="button" class="btn btn-success">Classify</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-sm-8 error" id="error">
+                <span>Error: Cannot classify image. Classifier was not able to detect a face and two eyes
+                    properly.</span>
+            </div>
+            <div class="result-section col-sm-3 d-flex align-items-center justify-content-between" id="resultSection">
+                <button id="backBtn" type="button" class="triangle-btn-left"></button>
+                <div id="resultHolder">
+                </div>
+                <button id="nextBtn" type="button" class="triangle-btn-right"></button>
+            </div>
+            <div class="col-sm-5" id="divClassTable">
+                <table id="classTable">
+                    <tr>
+                        <th>Hobbit</th>
+                        <th>% Confidence</th>
+                    </tr>
+                    <tr>
+                        <td>Frodo Baggins</td>
+                        <td id="score_elijah_wood"></td>
+                    </tr>
+                    <tr>
+                        <td>Samwise Gamgee</td>
+                        <td id="score_sean_astin"></td>
+                    </tr>
+                    <tr>
+                        <td>Peregrin Took</td>
+                        <td id="score_billy_boyd"></td>
+                    </tr>
+                    <tr>
+                        <td>Meriadoc Brandybuck</td>
+                        <td id="score_dominic_monaghan"></td>
+                    </tr>
+                    <tr>
+                        <td>Bilbo Baggins</td>
+                        <td id="score_martin_freeman"></td>
+                    </tr>
+                </table>
+            </div>
+
+        </div>
+
+    </div>
+
+</body>
+<!-- <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script> -->
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.4.1/jquery.min.js"></script>
+<script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.0/js/bootstrap.min.js"></script>
+<script src="./dropzone.min.js"></script>
+<script src="./app.js"></script>
+
+</html>

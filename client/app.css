@@ -1,0 +1,133 @@
+@font-face {
+    font-family: "Middle Earth";
+    src: url('font/middle-earth-font/MiddleEarthPersonalUseRegular-axlP5.otf');
+}
+
+.navbar {
+    font-family: "Middle Earth";
+    font-size: 50px;
+}
+
+.container {
+    width: 65%;
+}
+
+.card {
+    background-color: transparent;
+    align-items: center;
+    border: 0;
+}
+
+.card-body {
+    padding-bottom: 0;
+}
+
+.card-image {
+    width: 10vw;
+    height: 10vw;
+    border-radius: 100%;
+}
+
+.card-title {
+    font-family: "Middle Earth";
+    font-size: 25px;
+    font-weight: bold;
+}
+
+.white-section {
+    background-color: white;
+    padding: 2vw 1vw 2vw 1vw;
+    border-radius: 1vw;
+}
+
+.dropzone {
+    border-style: dashed;
+}
+
+.error {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 20px;
+    line-height: initial;
+    color: rgb(0, 0, 0);
+    text-align: center;
+    vertical-align: middle;
+}
+
+.triangle-btn-left,
+.triangle-btn-right {
+    background-color: green;
+    border: none;
+    width: 0;
+    height: 0;
+    padding: 0;
+    cursor: pointer;
+    outline: none;
+}
+
+.triangle-btn-left {
+    clip-path: polygon(100% 0, 0 50%, 100% 100%);
+    width: 15px;
+    height: 30px;
+}
+
+.triangle-btn-right {
+    clip-path: polygon(0 0, 100% 50%, 0 100%);
+    width: 15px;
+    height: 30px;
+}
+
+#resultSection {
+    padding: 0
+}
+
+#resultHolder {
+    width: 90%;
+    text-align: center;
+    margin: auto;
+}
+
+#classTable {
+    font-family: "Trebuchet MS", Arial, Helvetica, sans-serif;
+    border-collapse: collapse;
+    width: 100%;
+}
+
+#classTable td,
+#classTable th {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+
+#classTable td {
+    background-color: #ffffff;
+}
+
+#classTable th {
+    padding-top: 12px;
+    padding-bottom: 12px;
+    text-align: left;
+    background-color: #4CAF50;
+    color: white;
+}
+
+.blurred-img {
+    background: url('https://images.pexels.com/photos/235985/pexels-photo-235985.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1');
+    background-position: center;
+    background-repeat: no-repeat;
+    background-size: cover;
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    top: 0;
+    left: 0;
+    z-index: -1;
+}
+
+.blurred-img::after {
+    content: "";
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    backdrop-filter: blur(1px);
+    pointer-events: none;
+}
