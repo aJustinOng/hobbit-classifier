@@ -1,4 +1,4 @@
-# Hobbit Face Classifier ![](./assets/img/face-scan.svg) (README WIP)
+# Hobbit Face SVM Classifier ![](./assets/img/face-scan.svg) (README WIP)
 
 **Skills:** `Python | NumPy | Pandas | Matplotlib | OpenCV | PyWavelets | scikit-learn | HTML | CSS | JavaScript`
 
