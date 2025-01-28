@@ -35,7 +35,61 @@ Since the theme of this project was hobbits, we will be classifying between five
 
 In an image classification project, a collection of good quality images of each classification object (in this case, faces of the actors) is required to train our model. I tested several image web scraping tools but they were not very effective being only able to scrap the image thumbnails on Google, resulting in poor quality images around 100px-200px in width/height. Web scraping has become more and more controlled in the recent years, so it may not be the way to go for this project. Since we are only classifying between five faces, I spent a couple hours manually clicking through and downloading 50 high quality images for each actor (250 images in total). Although tedious, this helps with the preprocessing as well since there will be few unsuitable training data (like faces of other people or obstructed faces). I placed these images in subfolders named after their respectively actors (e.g. path in repo: `model -> data -> dataset -> elijah_wood`)
 
+> Note: If you have trouble in manually downloading images in a consistent .jpg or .png format, a image format converter browser extension is very helpful. They help minimize problems with difficult formats like WEBP files. Extensions also tend to come and go so any on the Chrome extension store should work well.
+
+Some examples of the images we will be using:
+
+`model/data/dataset/elijah_wood/19046_v9_bb.jpg:`
+
+<img src="model/data/dataset/elijah_wood/19046_v9_bb.jpg" width="40%">
+
+`model/data/dataset/elijah_wood/019c63_92e16961e1ca4d8589b03b451.jpg:`
+
+<img src="model/data/dataset/elijah_wood/019c63_92e16961e1ca4d8589b03b451.jpg" width="60%">
+
 ## 2. Importing Libraries and Data Loading
+
+### 2.1 Install Necessary Libraries
+
+These are the required library installations and their specific versions I used for this project (written in `requirements.txt`:
+
+```
+PyWavelets==1.7.0
+opencv-python==4.11.0
+seaborn==0.8.1
+```
+
+We can quickly install these libraries in `requirements.txt` by using the following command in the command prompt:
+
+```
+pip install -r requirements.txt
+```
+
+### 2.2 Import Libraries
+
+After successfully installing those libraries, we can create a new Jupyter Notebook and import the common libraries:
+
+```
+import numpy as np
+import cv2
+import matplotlib
+from matplotlib import pyplot as plt
+%matplotlib inline
+```
+
+### 2.3 Load Data
+
+We can use `cv2` to read images and plot them. Let us load an image in the `test_images` folder:
+
+```
+img = cv2.imread('./data/test_images/image_1.jpg')
+plt.imshow(img)
+plt.show()
+```
+
+<img src="/assets/img/plt-elijah-wood-original.png" width="40%">
+
+We will use this image to demonstrate our image preprocessing with data cleaning and feature engineering.
 
 ## 3. Image Preprocessing: Data Cleaning
 
