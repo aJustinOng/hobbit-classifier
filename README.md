@@ -26,9 +26,14 @@ So I searched for and downloaded 50 images for each of the chosen five hobbit ac
 5. [Model Building Using SVM](#5-model-building-using-svm)
 6. [Creating a Python Flask Server](#6-creating-a-python-flask-server)
 7. [Creating a User-Friendly Webpage](#7-creating-a-user-friendly-webpage)
-8. [Summary](#summary)
+8. [Bonus: More Faces?](#8-bonus-more-faces)
+9. [Summary](#summary)
 
 ## 1. Data Collection from Google
+
+Since the theme of this project was hobbits, we will be classifying between five actors who have played the role in the Tolkien franchise: **Elijah Wood**, **Sean Astin**, **Billy Boyd**, **Dominic Monaghan**, and **Martin Freeman**. In the movies they played the hobbits Frodo Baggins, Samwise Gamgee, Peregrin (or Pippin) Took, Meriadoc (or Merry) Brandybuck, and Bilbo Baggins, respectively. Let us stick with the actors' names for the meantime. We will not worry too much about the hobbit names until we get to the webpage UI.
+
+In an image classification project, a collection of good quality images of each classification object (in this case, faces of the actors) is required to train our model. I tested several image web scraping tools but they were not very effective being only able to scrap the image thumbnails on Google, resulting in poor quality images around 100px-200px in width/height. Web scraping has become more and more controlled in the recent years, so it may not be the way to go for this project. Since we are only classifying between five faces, I spent a couple hours manually clicking through and downloading 50 high quality images for each actor (250 images in total). Although tedious, this helps with the preprocessing as well since there will be few unsuitable training data (like faces of other people or obstructed faces). I placed these images in subfolders named after their respectively actors (e.g. path in repo: `model -> data -> dataset -> elijah_wood`)
 
 ## 2. Importing Libraries and Data Loading
 
@@ -41,6 +46,8 @@ So I searched for and downloaded 50 images for each of the chosen five hobbit ac
 ## 6. Creating a Python Flask Server
 
 ## 7. Creating a User-Friendly Webpage
+
+## 8. Bonus: More Faces?
 
 ## Summary
 
