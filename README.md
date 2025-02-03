@@ -363,13 +363,13 @@ for hobbit_name in hobbit_file_names_dict.keys():
 class_dict
 ```
 
-<img src="/assets/img/jupyter-output-8.png" width="30%">
+<img src="/assets/img/jupyter-output-8.png" width="25%">
 
 ### 4.3 Stack Cropped and Wavelet Transformed Images
 
 We want to train the model with the both the original cropped image and the wavelet transformed image, so we can stack them using `numpy.vstack()`. They will end up looking like this:
 
-<img src="/assets/img/model-input-sample.png" width="50%">
+<img src="/assets/img/model-input-sample.png" width="40%">
 
 `X` will contain the combined images and `y` will contain the classification (actor id from 1-5 that we set in `class_dict`).
 
@@ -432,7 +432,7 @@ We can take a closer look at the precision, recall and f1-score of the test resu
 print(classification_report(y_test, pipe.predict(X_test)))
 ```
 
-<img src="/assets/img/jupyter-output-2.png" width="40%">
+<img src="/assets/img/jupyter-output-2.png" width="50%">
 
 ### 5.2 Use GridSearchCV to Determine Best Model Parameters
 
