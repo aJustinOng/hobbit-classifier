@@ -277,13 +277,289 @@ for img_dir in img_dirs:
 
 ## 4. Image Preprocessing: Feature Engineering
 
+### 4.1 Use Wavelet Transform to Extract Facial Features
+
+PyWavelets can be used to extract information from data like images and audio. A computer model cannot visually see images like we can, so we can use PyWavelets to perform wavelet transform on them, extracting facial features into data that is distinguishable by a computer.
+
+The following code was taken from [a Stack Overflow thread](https://stackoverflow.com/questions/24536552/how-to-combine-pywavelet-and-opencv-for-image-processing). It combines OpenCV and PyWavelet for image processing.
+
+```
+import numpy as np
+import pywt
+import cv2    
+
+# From stackoverflow
+def w2d(img, mode='haar', level=1):
+    imArray = img
+    #Datatype conversions
+    #convert to grayscale
+    imArray = cv2.cvtColor(imArray,cv2.COLOR_RGB2GRAY)
+    #convert to float
+    imArray =  np.float32(imArray)   
+    imArray /= 255;
+    # compute coefficients 
+    coeffs=pywt.wavedec2(imArray, mode, level=level)
+
+    #Process Coefficients
+    coeffs_H=list(coeffs)
+    coeffs_H[0] *= 0;  
+
+    # reconstruction
+    imArray_H=pywt.waverec2(coeffs_H, mode);
+    imArray_H *= 255;
+    imArray_H =  np.uint8(imArray_H)
+
+    return imArray_H
+```
+
+We can plot the wavelet transformed image:
+
+```
+img_har = w2d(cropped_img,'db1',5)
+plt.imshow(img_har, cmap='gray')
+plt.show()
+```
+
+<img src="/assets/img/plt-elijah-wood-haar-cascades.png" width="50%">
+
+### 4.2 Store Data in Dictionaries
+
+We can create a dictionary to store a list of the paths of each image under each person, so we can easily access them later.
+
+```
+hobbit_file_names_dict = {}
+for img_dir in cropped_image_dirs:
+    hobbit_name = img_dir.split('/')[-1]
+    file_list = []
+    for entry in os.scandir(img_dir):
+        file_list.append(entry.path)
+    hobbit_file_names_dict[hobbit_name] = file_list
+```
+
+`hobbit_file_names_dict` has the following dictionary structure:
+
+```
+{
+'billy_boyd': [
+  './data/cropped_images/billy_boyd\\billy_boyd1.png',
+  './data/cropped_images/billy_boyd\\billy_boyd10.png',
+  './data/cropped_images/billy_boyd\\billy_boyd11.png',...]
+'dominic_monaghan': [
+  './data/cropped_images/dominic_monaghan\\dominic_monaghan1.png',
+  './data/cropped_images/dominic_monaghan\\dominic_monaghan10.png',
+  './data/cropped_images/dominic_monaghan\\dominic_monaghan11.png',...]
+...
+}
+```
+
+We will also label the five actors from 1-5 to easily reference them later.
+
+```
+class_dict = {}
+count = 0
+for hobbit_name in hobbit_file_names_dict.keys():
+    class_dict[hobbit_name] = count
+    count = count + 1
+class_dict
+```
+
+<img src="/assets/img/jupyter-output-8.png" width="30%">
+
+### 4.3 Stack Cropped and Wavelet Transformed Images
+
+We want to train the model with the both the original cropped image and the wavelet transformed image, so we can stack them using `numpy.vstack()`. They will end up looking like this:
+
+<img src="/assets/img/model-input-sample.png" width="50%">
+
+`X` will contain the combined images and `y` will contain the classification (actor id from 1-5 that we set in `class_dict`).
+
+```
+X, y = [], []
+
+for hobbit_name, training_files in hobbit_file_names_dict.items():
+    for training_image in training_files:
+        img = cv2.imread(training_image)
+        if img is None:
+            continue
+        scaled_raw_img = cv2.resize(img, (32, 32))
+        img_har = w2d(img,'db1',5)
+        scaled_img_har = cv2.resize(img_har, (32, 32))
+        combined_img = np.vstack((scaled_raw_img.reshape(32*32*3,1),scaled_img_har.reshape(32*32,1)))
+        X.append(combined_img)
+        y.append(class_dict[hobbit_name])
+```
+
+Lastly, we reformat the `X` values from `int` to `float`. It is optional but we want to avoid scikit-learn int warnings. `X` will have a shape of (218, 4096).
+
+```
+X = np.array(X).reshape(len(X), 4096).astype(float)
+X.shape
+```
+
+218 is the number of training images (filtered from our original 250 image dataset) and 4096 is the size of each image. The size of each image is 4096 because the array of the RGB image is 32 x 32 x 3 and the wavelet transformed image is 32 x 32 x 1, totaling to 4096 (3072 + 1024).
+ 
 ## 5. Model Building Using SVM
+
+### 5.1 Build SVM Model
+
+We can now start the SVM (Support Vector Machine) model building process. We will use SVC (Support Vector Classification) for this model. Start by importing the necessary scikit-learn libraries:
+
+```
+from sklearn.svm import SVC
+from sklearn.preprocessing import StandardScaler
+from sklearn.model_selection import train_test_split
+from sklearn.pipeline import Pipeline
+from sklearn.metrics import classification_report
+```
+
+After we train and test the model, we get quite a poor result of `0.63636` from a dataset of 55 test images.
+
+```
+X_train, X_test, y_train, y_test = train_test_split(X, y, random_state=0)
+
+pipe = Pipeline([('scaler', StandardScaler()), ('svc', SVC(kernel = 'rbf', C = 10))])
+pipe.fit(X_train, y_train)
+pipe.score(X_test, y_test)
+```
+
+```
+len(X_test)
+```
+
+We can take a closer look at the precision, recall and f1-score of the test results. I assume that the model has a poor accuracy due to the limitations of SVC. The images are all of Caucasian male actors, so their different features might not be as apparent as between male/female, Caucasian/Asian, etc.
+
+```
+print(classification_report(y_test, pipe.predict(X_test)))
+```
+
+<img src="/assets/img/jupyter-output-2.png" width="40%">
+
+### 5.2 Use GridSearchCV to Determine Best Model Parameters
+
+Although the limitations of the model may be caused by the data, we can still use GridSearchCV to test different models, namely SVM, Random Forest, and Logistic Regression. Import the necessary libraries:
+
+```
+from sklearn import svm
+from sklearn.ensemble import RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.pipeline import make_pipeline
+from sklearn.model_selection import GridSearchCV
+```
+
+Set up our desired models in a `model_params` dictionary:
+
+```
+model_params = {
+    'svm': {
+        'model': svm.SVC(gamma='auto',probability=True),
+        'params' : {
+            'svc__C': [1,10,100,1000],
+            'svc__kernel': ['rbf','linear']
+        }  
+    },
+    'random_forest': {
+        'model': RandomForestClassifier(),
+        'params' : {
+            'randomforestclassifier__n_estimators': [1,5,10]
+        }
+    },
+    'logistic_regression' : {
+        'model': LogisticRegression(solver='liblinear'),
+        'params': {
+            'logisticregression__C': [1,5,10]
+        }
+    }
+}
+```
+
+Run it to check the scores of each model:
+
+```
+scores = []
+best_estimators = {}
+import pandas as pd
+for algo, mp in model_params.items():
+    pipe = make_pipeline(StandardScaler(), mp['model'])
+    clf =  GridSearchCV(pipe, mp['params'], cv=5, return_train_score=False)
+    clf.fit(X_train, y_train)
+    scores.append({
+        'model': algo,
+        'best_score': clf.best_score_,
+        'best_params': clf.best_params_
+    })
+    best_estimators[algo] = clf.best_estimator_
+    
+df = pd.DataFrame(scores,columns=['model','best_score','best_params'])
+df
+```
+
+<img src="/assets/img/jupyter-output-3.png" width="50%">
+
+We can also check the best parameters for each model.
+
+```
+best_estimators
+```
+
+<img src="/assets/img/jupyter-output-4.png" width="60%">
+
+Logistic Regression is not much of an improvement from SVM, and Random Forest is even worse. We will stick with SVM. Save the optimal parameters.
+
+```
+best_clf = best_estimators['svm']
+```
+
+We can use a confusion matrix to better visualize the model accuracy. We can see that the model generally gives the correct classification, but makes a noticable amount of mistakes.
+
+<img src="/assets/img/jupyter-output-5.png" width="35%">
+
+### 5.3 Export Model
+
+> In a real-life scenario, we will have to further tune the model to get much better results before deploying the model. Possible ways of improvement is by using more modern image classification methods or improving the training dataset by quality or quantity.
+
+Once we are done with our model, we can export it as a pickle file.
+
+```
+import joblib
+joblib.dump(best_clf, 'hobbit_model.pkl')
+```
+
+We will also export `class_dict` as a JSON file.
+
+```
+import json
+with open("class_dictionary.json","w") as f:
+    f.write(json.dumps(class_dict))
+```
 
 ## 6. Creating a Python Flask Server
 
+<img src="/assets/img/util-test-1.png" width="70%">
+
+<img src="/assets/img/util-test-2.png" width="70%">
+
 ## 7. Creating a User-Friendly Webpage
+
+<img src="/assets/img/test-inputs.jpg" width="70%">
+
+<img src="/assets/img/website-ui-0.png" width="70%">
+
+<img src="/assets/img/website-ui-1.png" width="70%">
+
+<img src="/assets/img/website-ui-2.png" width="70%">
+
+<img src="/assets/img/website-ui-3.png" width="70%">
 
 ## 8. Bonus: More Faces?
 
+<img src="/assets/img/billy-boyd-and-dominic-monaghan.jpg" width="70%">
+
+<img src="/assets/img/website-ui.gif" width="100%"/>
+
 ## Summary
 
+This is a image classification project, where I trained a SVM model to classify between images of five different actors. In the preprocessing process, I used Haar Cascades to determine if both of the actors' eyes were clearly visible. After removing those that were not, I used PyWavelet's wavelet transform to extract the facial features. The model was then trained with both the original RGB images and the wavelet transformed images. Since the actors were all Caucasian male actors, their different features were not easily distinguishable which led to inaccuracy in the model.
+
+I then hosted the exported model in a Python Flask server and created a user-friendly interface using HTML, CSS, and JavaScript. There a user can drop images into the webpage and it will try to determine which of the five actors the image contains using the model. It can also handle images with multiple faces, and displays the confidence of each classified face.
+
+##### [See my other projects!](https://github.com/aJustinOng)
