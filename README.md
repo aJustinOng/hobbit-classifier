@@ -1,4 +1,4 @@
-# Hobbit Face SVM Classifier ![](./assets/img/face-scan.svg) (README WIP)
+# Hobbit Face SVM Classifier ![](./assets/img/face-scan.svg)
 
 **Skills:** `Python | NumPy | Pandas | Matplotlib | OpenCV | PyWavelets | scikit-learn | HTML | CSS | JavaScript`
 
@@ -26,8 +26,7 @@ So I searched for and downloaded 50 images for each of the chosen five hobbit ac
 5. [Model Building Using SVM](#5-model-building-using-svm)
 6. [Creating a Python Flask Server](#6-creating-a-python-flask-server)
 7. [Creating a User-Friendly Webpage](#7-creating-a-user-friendly-webpage)
-8. [Bonus: More Faces?](#8-bonus-more-faces)
-9. [Summary](#summary)
+8. [Summary](#summary)
 
 ## 1. Data Collection from Google
 
@@ -534,15 +533,369 @@ with open("class_dictionary.json","w") as f:
 
 ## 6. Creating a Python Flask Server
 
-<img src="/assets/img/util-test-1.png" width="70%">
+> In this section I will not be going over the steps in chronological order, but rather briefly explain each file in the server folder provided in this GitHub repository. This is because the steps frequently jump between `server.py`, `util.py`, `wavelet.py`, and can cause a lot of confusion if done step-by-step.
+
+We now want to host the model on a server, so we can connect it to the user interface on the webpage. We can use a Python Flask server for this project. In the same directory, we create three files `server.py`, `util.py`, `wavelets.py` and two folders `artifacts` and `opencv`.
+
+In `artifacts`, we copy the `hobbit_model.pkl` and `class.json` files we just exported from Jupyter Notebook. In `opencv`, we store the Haar Cascades xml files, such as `haarcascade_eye.xml` and `haarcascade_frontalface_default.xml`.
+
+Using PyCharm or another Python editor will work for this section.
+
+### 6.1 `server.py`
+
+This is the Python file which we use to run the server. We first import the necessary libraries from Flask as well as `util.py`, which will handle what we need for loading and calling the model.
+
+```
+from flask import Flask, request, jsonify
+import util
+```
+
+We set the app as a Flask server:
+
+```
+app = Flask(__name__)
+```
+
+We only have HTTP method in `server.py` which calls `classify_image()` from `util.py` and returns a dictionary of the determined class and list of probabilities for each class. This is called when the server gets a HTTP request with the url `/classify_image`.
+
+```
+@app.route('/classify_image', methods=['GET', 'POST'])
+def classify_image():
+    image_data = request.form['image_data']
+
+    response = jsonify(util.classify_image(image_data))
+
+    response.headers.add('Access-Control-Allow-Origin', '*')
+
+    return response
+```
+
+This main function runs when `server.py` is run. It logs a prompt and calls `load_saved_artifacts()` from util.py before starting the Flask server on port 5000.
+
+```
+if __name__ == "__main__":
+    print("Starting Python Flask Server For Hobbit Image Classification")
+    util.load_saved_artifacts()
+    app.run(port=5000)
+```
+
+### 6.2 `util.py`
+
+This file will contain all the necessary functions needed to run and use the model. Here we load the artifacts, detect if the user-given image contains a face with two visible eyes, convert a base64 string into an image, and classify the image. Then the result is returned to `server.py`. Import the necessary libraries and `wavelet.py`, which contains the `w2d()` function we previously used:
+
+```
+import base64
+import cv2
+import joblib
+import json
+import numpy as np
+from wavelet import w2d
+```
+
+Declare some global variables:
+
+```
+__class_name_to_number = {}
+__class_number_to_name = {}
+__model = None
+
+```
+
+The following function loads the `hobbit_model.pkl` model and the `class_dictionary.json` file from the `artifacts` folder. `__class_name_to_number` contains the names of the actors and `__class_number_to_name` contains their respective IDs from 1-5.
+
+```
+def load_saved_artifacts():
+    print("loading saved artifacts...start")
+    global __class_name_to_number
+    global __class_number_to_name
+
+    with open("./artifacts/class_dictionary.json", "r") as f:
+        __class_name_to_number = json.load(f)
+        __class_number_to_name = {v:k for k,v in __class_name_to_number.items()}
+
+    global __model
+    if __model is None:
+        with open('./artifacts/hobbit_model.pkl', 'rb') as f:
+            __model = joblib.load(f)
+    print("loading saved artifacts...done")
+```
+
+This is our primary function, and contains very similar code to the preprocessing code that was used earlier. It uses the `get_cropped_image_if_2_eyes()` function to only return a cropped image of the facial region if both eyes are detected. If the image given by the user does not contain a face and two eyes, it will not attempt to classify it but instead return nothing.
+
+Next, it uses `w2d()` from our `wavelet.py` file to perform wavelet transformation on the image, and stack the original image on top of the wavelet transformed image, like before. The model is then given the image and classifies the face. The result is saved in `class`, `class_probability`, and `class_dictionary`, which is stored into a list of results and returned.
+
+```
+def classify_image(image_base64_data, file_path=None):
+    imgs = get_cropped_image_if_2_eyes(file_path, image_base64_data)
+
+    result = []
+
+    for img in imgs:
+        scaled_raw_img = cv2.resize(img, (32, 32))
+        img_har = w2d(img, 'db1', 5)
+        scaled_img_har = cv2.resize(img_har, (32, 32))
+        combined_img = np.vstack((scaled_raw_img.reshape(32 * 32 * 3, 1), scaled_img_har.reshape(32 * 32, 1)))
+
+        len_image_array = 32 * 32 * 3 + 32 * 32
+
+        final = combined_img.reshape(1, len_image_array).astype(float)
+
+        result.append({
+            'class': class_number_to_name(__model.predict(final)[0]),
+            'class_probability': np.around(__model.predict_proba(final) * 100, 2).tolist()[0],
+            'class_dictionary': __class_name_to_number
+        })
+
+    return result
+```
+
+This function returns the name of the actor corresponding to their ID.
+
+```
+def class_number_to_name(class_num):
+    return __class_number_to_name[class_num]
+```
+
+This function reads and returns a base64 string, which we can use for testing.
+
+```
+def get_b64_test_image_for_virat():
+    with open("b64.txt") as f:
+        return f.read()
+```
+
+This function converts a base64 string into a image.
+
+Code snippet was found on [this Stack Overflow thread](https://stackoverflow.com/questions/33754935/read-a-base-64-encoded-image-from-memory-using-opencv-python-library).
+
+```
+def get_cv2_image_from_base64_string(b64str):
+    '''
+    :param uri:
+    :return:
+    '''
+    encoded_data = b64str.split(',')[1]
+    nparr = np.frombuffer(base64.b64decode(encoded_data), np.uint8)
+    img = cv2.imdecode(nparr, cv2.IMREAD_COLOR)
+    return img
+```
+
+This is the [same code](#33-crop-images-if-more-than-two-eyes) we used during preprocessing, using OpenCV Haar Cascades to detect faces and eyes, and returning a cropped image if it contains two eyes.
+
+```
+def get_cropped_image_if_2_eyes (image_path, image_base64_data):
+    face_cascade = cv2.CascadeClassifier('./opencv/haarcascades/haarcascade_frontalface_default.xml')
+    eye_cascade = cv2.CascadeClassifier('./opencv/haarcascades/haarcascade_eye.xml')
+
+    if image_path:
+        img = cv2.imread(image_path)
+    else:
+        img = get_cv2_image_from_base64_string(image_base64_data)
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+
+    cropped_faces = []
+    for (x, y, w, h) in faces:
+        roi_gray = gray[y: y + h, x: x + w]
+        roi_color = img[y: y + h, x: x + w]
+        eyes = eye_cascade.detectMultiScale(roi_gray)
+        if len(eyes) >= 2:
+            cropped_faces.append(roi_color)
+    return cropped_faces
+```
+
+And the main function is runs when util.py is run. Used for testing purposes.
+
+```
+if __name__ == "__main__":
+    load_saved_artifacts()
+
+    print(classify_image(None, "./test_images/elijah_wood.jpg"))
+    print(classify_image(None, "./test_images/sean_astin.jpeg"))
+    print(classify_image(None, "./test_images/billy_boyd.jpg"))
+    print(classify_image(None, "./test_images/martin_freeman.jpg"))
+```
 
 <img src="/assets/img/util-test-2.png" width="70%">
 
+The results look promising, other than `martin_freeman.jpg`. The image is from the movies, and we can assume that OpenCV has trouble detecting his left eye because of the lighting, which returns an empty list as expected.
+
+<img src="/assets/img/martin-freeman.jpg" width="60%">
+
+### 6.3 `wavelet.py`
+
+This file contains the [same code](#41-use-wavelet-transform-to-extract-facial-features) we used during preprocessing. Used to perform wavelet transform on the user-given image.
+
+```
+import numpy as np
+import pywt
+import cv2
+
+# From stackoverflow
+def w2d(img, mode='haar', level=1):
+    imArray = img
+    #Datatype conversions
+    #convert to grayscale
+    imArray = cv2.cvtColor(imArray,cv2.COLOR_RGB2GRAY)
+    #convert to float
+    imArray =  np.float32(imArray)
+    imArray /= 255;
+    # compute coefficients
+    coeffs=pywt.wavedec2(imArray, mode, level=level)
+
+    #Process Coefficients
+    coeffs_H=list(coeffs)
+    coeffs_H[0] *= 0;
+
+    # reconstruction
+    imArray_H=pywt.waverec2(coeffs_H, mode);
+    imArray_H *= 255;
+    imArray_H =  np.uint8(imArray_H)
+
+    return imArray_H
+```
+
 ## 7. Creating a User-Friendly Webpage
+
+> In this section, I will not go over the code in the HTML and CSS files, since they are not the focus of the project. I will only briefly go over the design and necessary functions of them. The files for this webpage is all under the client folder provided in this GitHub repository.
+
+To make the model more interactive, we can create a webpage that allows a user to upload an image and ask the model to classify the actor in that image. It will also display the confidence level of each class. It is created with basic HTML, CSS, and JavaScript. Here we create `app.html`, `app.css`, and `app.js` in the same folder. Visual Studio Code is a suitable code editor for all three files. We also import `dropzone.min.css` and `dropzone.min.js` here, to easily use a dropzone. 
+
+### 7.1 HTML and CSS
+As mentioned in the beginning notes of this section, I will only be going over app.html and app.css briefly. The files for this webpage is all under the client folder provided in this GitHub repository. 
+
+<img src="/assets/img/website-ui-0.png" width="70%">
+
+This is a very simple user interface, an area to upload an image and display the results once the model is done classifying it. The background and font style are purely for aesthetic purposes.
+
+### 7.2 JavaScript
+
+We first set `Dropzone.autoDiscover` to `false` to disable `Dropzone.js`'s automatic initialization of file upload fields. We also declare `hobbitArrayCounter` to keep track of which hobbit we are on if there are multiple faces, and `match` to store the data of all the faces.
+
+```
+Dropzone.autoDiscover = false;
+let hobbitArrayCounter = 0;
+let match = [];
+```
+
+This `init()` function handles user interaction of the dropzone and "classify" button. Once an image is submitted, it uses `updateDisplay()` to display the results if it gets one, otherwise it will display an error message. It also handles user interaction of the back and next buttons, cycling back and forth through multiple faces respectively.
+
+```
+function init() {
+    let dz = new Dropzone("#dropzone", {
+        url: "/",
+        maxFiles: 1,
+        addRemoveLinks: true,
+        dictDefaultMessage: "Some Message",
+        autoProcessQueue: false
+    });
+
+    dz.on("addedfile", function () {
+        if (dz.files[1] != null) {
+            dz.removeFile(dz.files[0]);
+        }
+    });
+
+    dz.on("complete", function (file) {
+        let imageData = file.dataURL;
+
+        let url = "http://127.0.0.1:5000/classify_image";
+
+        $.post(url, {
+            image_data: file.dataURL
+        }, function (data, status) {
+            console.log(data);
+            if (!data || data.length == 0) {
+                $("#backBtn").hide();
+                $("#nextBtn").hide();
+                $("#resultHolder").hide();
+                $("#divClassTable").hide();
+                $("#error").show();
+                return;
+            }
+
+            match = data.map(item => {
+                let maxScore = Math.max(...item.class_probability);
+                return { ...item, bestScore: maxScore };
+            });
+
+            // Show the first result by default
+            hobbitArrayCounter = 0;
+            updateDisplay();
+        });
+    });
+
+    $("#submitBtn").on("click", function (e) {
+        dz.processQueue();
+    });
+
+    $("#backBtn").on("click", function (e) {
+        hobbitArrayCounter--;
+        hobbitArrayCounter = (hobbitArrayCounter + match.length) % match.length; // cursed code bc js cannot do modulus -1 for some reason
+        updateDisplay();
+    });
+
+    $("#nextBtn").on("click", function (e) {
+        hobbitArrayCounter++;
+        hobbitArrayCounter = hobbitArrayCounter % match.length;
+        updateDisplay();
+    });
+}
+```
+
+This function refreshes the results area if a result is returned from the model (at least one face and two eyes are detected). It also checks if there are more faces and pairs of eyes, if yes, the back and next buttons are displayed, allowing the user to cycle through the detected faces.
+
+```
+function updateDisplay() {
+    if (!match || match.length === 0) {
+        return;
+    }
+    let currentMatch = match[hobbitArrayCounter];
+    $("#backBtn").hide();
+    $("#nextBtn").hide();
+    $("#error").hide();
+    $("#resultHolder").show();
+    $("#divClassTable").show();
+    if (match.length > 1) {
+        $("#backBtn").show();
+        $("#nextBtn").show();
+    }
+
+    $("#resultHolder").html($(`[data-player="${currentMatch.class}"]`).html());
+    let classDictionary = currentMatch.class_dictionary;
+
+    for (let personName in classDictionary) {
+        let index = classDictionary[personName];
+        let probabilityScore = currentMatch.class_probability[index];
+        let elementName = "#score_" + personName;
+        $(elementName).html(probabilityScore);
+    }
+}
+```
+
+This is the default look of the webpage on load, hiding everything in the result area.
+
+```
+$(document).ready(function () {
+    console.log("ready!");
+    $("#error").hide();
+    $("#backBtn").hide();
+    $("#nextBtn").hide();
+    $("#resultHolder").hide();
+    $("#divClassTable").hide();
+
+    init();
+});
+```
+
+### 7.3 Final Result
+
+Open up the HTML file on any browser (make sure the server is still running) and drop an image in the dropzone. We can test the webpage with the following images: 
 
 <img src="/assets/img/test-inputs.jpg" width="70%">
 
-<img src="/assets/img/website-ui-0.png" width="70%">
+We get the same results as before:
 
 <img src="/assets/img/website-ui-1.png" width="70%">
 
@@ -550,11 +903,23 @@ with open("class_dictionary.json","w") as f:
 
 <img src="/assets/img/website-ui-3.png" width="70%">
 
-## 8. Bonus: More Faces?
+### 7.4 More Faces?
+
+What about an image with two faces? Here is an image with both Dominic Monaghan (left) and Billy Boyd (right):
 
 <img src="/assets/img/billy-boyd-and-dominic-monaghan.jpg" width="70%">
 
+The webpage works perfectly! We can click through multiple results using the back and next buttons.
+
+<img src="/assets/img/website-ui-4.png" width="70%">
+
+<img src="/assets/img/website-ui-5.png" width="70%">
+
+Here is a GIF of the webpage in action:
+
 <img src="/assets/img/website-ui.gif" width="100%"/>
+
+Now the webpage is ready to deploy to production on a cloud service if we wish to, but that is beyond the scope of this project (and my wallet). Thank you for reading through this project!
 
 ## Summary
 
