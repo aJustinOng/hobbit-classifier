@@ -756,6 +756,20 @@ def w2d(img, mode='haar', level=1):
     return imArray_H
 ```
 
+### 6.4 Run the Server
+
+Now we can start the server up. Make sure that the `hobbit_model.pkl` and `class.json` files are in a `artifacts` folder in the same directory as `server.py`, `util.py`, and `wavelets.py`. There should also be a `opencv` folder with the Haar Cascades xml files. Open up a terminal in PyCharm (or code editor of choice) and make sure that it is in that directory. Run the server using:
+
+```
+python server.py
+```
+
+When the server loads it should say:
+
+```
+Running on http://127.0.0.1:5000
+```
+
 ## 7. Creating a User-Friendly Webpage
 
 > In this section, I will not go over the code in the HTML and CSS files, since they are not the focus of the project. I will only briefly go over the design and necessary functions of them. The files for this webpage is all under the client folder provided in this GitHub repository.
