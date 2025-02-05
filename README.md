@@ -1,6 +1,6 @@
-# Hobbit Face SVM Classifier ![](./assets/img/face-scan.svg)
+# Hobbit Face CNN Classifier ![](./assets/img/face-scan.svg)
 
-**Skills:** `Python | NumPy | Pandas | Matplotlib | OpenCV | PyWavelets | scikit-learn | HTML | CSS | JavaScript`
+**Skills:** `Python | NumPy | Pandas | Matplotlib | OpenCV | PyWavelets | scikit-learn | Keras | HTML | CSS | JavaScript`
 
 **Tools:** `Jupyter Notebook | VS Code | PyCharm | Flask`
 
@@ -14,9 +14,11 @@ This project is based on CodeBasic's [Sports Celebrity Image Classification](htt
 
 I was inspired to make this classification project when my friends started making plans to get together to watch the LOTR (Lord of the Rings) trilogy again. Hobbits are a race in the Tolkien franchise, and in the movies they are played by several well-known Hollywood actors such as Elijah Wood and Martin Freeman. I thought, since they are all male caucasian actors and played similar roles in the movies, can I build a model that can classify between them?
 
-So I searched for and downloaded 50 images for each of the chosen five hobbit actors (Elijah Wood, Sean Astin, Billy Boyd, Dominic Monaghan, and Martin Freeman) on Google. For the preprocessing, I used OpenCV's Haar cascade classifiers to detect faces and eyes in those images, filtering out the unideal training images. I then stored the cropped facial regions into a separate folder before using PyWavelets to extract the facial regions from them. The combined images of both the original cropped image and Wavelet transformed image were split into train and test sets, which were finally used to train a SVM (support vector machine) model. I used GridSearchCV to determine the best model and parameters. After exporting the model as a Pickle file, I loaded it in a Flask server that was connected to a HTML/CSS/JavaScript webpage. The webpage allows the user to drop in an image to classify which of the five hobbits the image resembles. It also displays the confidence of the model and can detect multiple faces in a single image.
+So I searched for and downloaded 50 images for each of the chosen five hobbit actors (Elijah Wood, Sean Astin, Billy Boyd, Dominic Monaghan, and Martin Freeman) on Google. For the preprocessing, I used OpenCV's Haar cascade classifiers to detect faces and eyes in those images, filtering out the unideal training images. I then stored the cropped facial regions into a separate folder before using PyWavelets to extract the facial regions from them. The combined images of both the original cropped image and wavelet transformed image were split into train and test sets, which were finally used to train a SVM (support vector machine) model. I used GridSearchCV to determine the best model and parameters. After exporting the model as a Pickle file, I loaded it in a Flask server that was connected to a HTML/CSS/JavaScript webpage. The webpage allows the user to drop in an image to classify which of the five hobbits the image resembles. It also displays the confidence of the model and can detect multiple faces in a single image.
 
 <img src="/assets/img/website-ui.gif" width="100%"/>
+
+I was not satisfied with the model's accuracy, so I went back to the model-building process. Since SVM is considered outdated in modern image classification, I replaced it with a CNN (Convolutional Neural Network) approach. It skips the wavelet transforming process, since CNN can work directly with raw image pixels. It achieved an accuracy of 84.1% after 20-30 training epochs, a hefty 20% improvement from the SVM model.
 
 ## Table of contents:
 1. [Data Collection from Google](#1-data-collection-from-google)
@@ -26,7 +28,8 @@ So I searched for and downloaded 50 images for each of the chosen five hobbit ac
 5. [Model Building Using SVM](#5-model-building-using-svm)
 6. [Creating a Python Flask Server](#6-creating-a-python-flask-server)
 7. [Creating a User-Friendly Webpage](#7-creating-a-user-friendly-webpage)
-8. [Summary](#summary)
+8. [Next Steps: Improving Model](#8-next-steps-improving-model)
+9. [Summary](#summary)
 
 ## 1. Data Collection from Google
 
@@ -929,15 +932,215 @@ The webpage works perfectly! We can click through multiple results using the bac
 
 <img src="/assets/img/website-ui-5.png" width="70%">
 
-Here is a GIF of the webpage in action:
+Now the webpage is ready to deploy to production on a cloud service if we wish to, but that is beyond the scope of this project (and my wallet).
+
+## 8. Next Steps: Improving Model
+
+### 8.1 CNN-based Approach
+
+After looking at the final results, I was not very satisfied with the model's accuracy of `0.63636`. So I decided to return to the the model-building process to find a different approach. SVM is considered outdated, so I wanted to replace it with a more modern image classification method like Convolutional Neural Networks (CNNs) and Vision Transformers (ViTs). I decided to use a CNN-based approach, which can be found in `hobbit_classifier_model_v2`. We can remove the wavelet transforming process, since CNN can work directly with raw image pixels while SVM requires feature scaling.
+
+Make sure we have all the libraries (old and new):
+
+```
+import numpy as np
+import seaborn as sns
+import cv2
+import matplotlib
+from matplotlib import pyplot as plt
+%matplotlib inline
+import tensorflow as tf
+from tensorflow import keras
+from tensorflow.keras import layers, callbacks
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, confusion_matrix
+import os
+import keras_tuner as kt
+import pickle
+```
+
+We rewrite the data loading process since wavelet transform is no longer needed.
+
+```
+def load_data(data_dir):
+    images = []
+    labels = []
+    class_names = os.listdir(data_dir)
+    for label, class_name in enumerate(class_names):
+        class_dir = os.path.join(data_dir, class_name)
+        for img_name in os.listdir(class_dir):
+            img_path = os.path.join(class_dir, img_name)
+            img = cv2.imread(img_path)
+            img = cv2.resize(img, (64, 64)) 
+            images.append(img)
+            labels.append(label)
+    return np.array(images) / 255.0, np.array(labels)
+```
+
+We also directly access the cropped images:
+
+```
+data_dir = "./data/cropped_images/"
+X, y = load_data(data_dir)
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+```
+
+Let us set up the model parameters. Instead of flattening images, we reshape them for CNN input (e.g., (height, width, channels)). We will need to replace `GridSearchCV` with `KerasTuner` to find the optimal parameters.
+
+```
+def build_model(hp):
+    model = keras.Sequential()
+    model.add(layers.Conv2D(hp.Int('conv1_filters', 32, 128, step=32), (3, 3), activation='relu', input_shape=(64, 64, 3)))
+    model.add(layers.MaxPooling2D(2, 2))
+    model.add(layers.Conv2D(hp.Int('conv2_filters', 32, 128, step=32), (3, 3), activation='relu'))
+    model.add(layers.MaxPooling2D(2, 2))
+    model.add(layers.Conv2D(hp.Int('conv3_filters', 32, 128, step=32), (3, 3), activation='relu'))
+    model.add(layers.MaxPooling2D(2, 2))
+    model.add(layers.Flatten())
+    model.add(layers.Dense(hp.Int('dense_units', 64, 256, step=64), activation='relu'))
+    model.add(layers.Dense(len(os.listdir(data_dir)), activation='softmax'))
+    
+    model.compile(
+        optimizer=keras.optimizers.Adam(hp.Choice('learning_rate', [0.001, 0.0001])),
+        loss='sparse_categorical_crossentropy',
+        metrics=['accuracy']
+    )
+    return model
+```
+
+```
+tuner = kt.RandomSearch(
+    build_model,
+    objective='val_accuracy',
+    max_trials=5,
+    executions_per_trial=1,
+    directory='kt_search',
+    project_name='cnn_tuning'
+)
+```
+
+We are all set, so let us build the model and evaluate it. We set the number of epochs to 50, but we can use `EarlyStopping` to prevent overfitting when validation loss stops improving.
+
+```
+# Perform hyperparameter search
+tuner.search(X_train, y_train, epochs=10, validation_data=(X_test, y_test))
+
+# Get the best model
+best_hps = tuner.get_best_hyperparameters(num_trials=1)[0]
+best_model = tuner.hypermodel.build(best_hps)
+
+# Define EarlyStopping callback
+early_stopping = callbacks.EarlyStopping(monitor='val_loss', patience=5, restore_best_weights=True)
+
+# Train the best model with EarlyStopping
+best_model.fit(X_train, y_train, epochs=50, validation_data=(X_test, y_test), callbacks=[early_stopping])
+
+# Evaluate the best model
+best_model.evaluate(X_test, y_test)
+```
+
+We get a nice accuracy `0.84091`, a great improvement from `0.63636`! Let us look at the classification report.
+
+```
+y_pred = np.argmax(best_model.predict(X_test), axis=1)
+print(classification_report(y_test, y_pred))
+```
+
+<img src="/assets/img/v2-f1score.png" width="50%">
+
+And the confusion matrix using `seaborn`:
+
+```
+conf_matrix = confusion_matrix(y_test, y_pred)
+sns.heatmap(conf_matrix, annot=True, fmt='d', cmap='Blues', xticklabels=os.listdir(data_dir), yticklabels=os.listdir(data_dir))
+plt.xlabel('Predicted')
+plt.ylabel('Actual')
+plt.title('Confusion Matrix')
+plt.show()
+```
+
+<img src="/assets/img/v2-matrix.png" width="50%">
+
+Much better results! We can export the new model with Pickle:
+
+```
+with open("hobbit_model_v2.pkl", "wb") as file:
+    pickle.dump(best_model, file)
+```
+
+### 8.2 Updating `server.py`
+
+The only other change needed is the `server.py` file. Make sure we have the following libraries:
+
+```
+import base64
+import cv2
+import pickle
+import json
+import numpy as np
+from tensorflow.keras.models import load_model
+from decimal import Decimal, ROUND_HALF_UP
+```
+
+We slightly modify the `load_saved_artifacts()` function to run `hobbit_model_v2.pkl`.
+
+```
+def load_saved_artifacts():
+    print("loading saved artifacts...start")
+    global __class_name_to_number
+    global __class_number_to_name
+
+    with open("./artifacts/class_dictionary.json", "r") as f:
+        __class_name_to_number = json.load(f)
+        __class_number_to_name = {v: k for k, v in __class_name_to_number.items()}
+
+    global __model
+    if __model is None:
+        with open('./artifacts/hobbit_model_v2.pkl', 'rb') as f:
+            __model = pickle.load(f)
+
+    print("loading saved artifacts...done")
+```
+
+`classify_image()` should be rewritten for a CNN-based classification.
+
+```
+def classify_image(image_base64_data, file_path=None):
+    imgs = get_cropped_image_if_2_eyes(file_path, image_base64_data)
+
+    result = []
+
+    for img in imgs:
+        img_resized = cv2.resize(img, (64, 64))
+        img_normalized = img_resized / 255.0 
+        img_reshaped = np.expand_dims(img_normalized, axis=0)
+
+        predictions = __model.predict(img_reshaped)
+        predicted_class = np.argmax(predictions[0])  # Get highest probability class
+        class_probability = [
+        float(Decimal(float(prob * 100)).quantize(Decimal('0.01'), rounding=ROUND_HALF_UP))
+        for prob in predictions[0]
+        ]
+        print(class_probability)
+
+        result.append({
+            'class': class_number_to_name(predicted_class),
+            'class_probability': class_probability,
+            'class_dictionary': __class_name_to_number
+        })
+
+    return result
+```
+
+The rest of `server.py` should remain the same. After running the server, the webpage should function like before:
 
 <img src="/assets/img/website-ui.gif" width="100%"/>
 
-Now the webpage is ready to deploy to production on a cloud service if we wish to, but that is beyond the scope of this project (and my wallet). Thank you for reading through this project!
+Thank you for reading through this project!
 
 ## Summary
 
-This is a image classification project, where I trained a SVM model to classify between images of five different actors. In the preprocessing process, I used Haar Cascades to determine if both of the actors' eyes were clearly visible. After removing those that were not, I used PyWavelet's wavelet transform to extract the facial features. The model was then trained with both the original RGB images and the wavelet transformed images. Since the actors were all Caucasian male actors, their different features were not easily distinguishable which led to inaccuracy in the model.
+This is a image classification project, where I trained a SVM model to classify between images of five different actors. In the preprocessing process, I used Haar Cascades to determine if both of the actors' eyes were clearly visible. After removing those that were not, I used PyWavelet's wavelet transform to extract the facial features. The model was then trained with both the original RGB images and the wavelet transformed images. Since the actors were all Caucasian male actors, their different features were not easily distinguishable which led to inaccuracy in the model. I later revised the model with a CNN-based approach, achieving an accuracy of 84.1%.
 
 I then hosted the exported model in a Python Flask server and created a user-friendly interface using HTML, CSS, and JavaScript. There a user can drop images into the webpage and it will try to determine which of the five actors the image contains using the model. It can also handle images with multiple faces, and displays the confidence of each classified face.
 
