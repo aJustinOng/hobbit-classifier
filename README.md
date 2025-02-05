@@ -1019,7 +1019,7 @@ tuner = kt.RandomSearch(
 )
 ```
 
-We are all set, so let us build the model and evaluate it.
+We are all set, so let us build the model and evaluate it. We set the number of epochs to 50, but we can use `EarlyStopping` to prevent overfitting when validation loss stops improving.
 
 ```
 # Perform hyperparameter search
